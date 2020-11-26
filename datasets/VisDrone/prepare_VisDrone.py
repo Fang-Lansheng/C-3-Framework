@@ -1,0 +1,84 @@
+import os
+import sys
+import cv2
+import numpy as np
+import pandas as pd
+from scipy.io import loadmat
+
+dataset = 'VisDrone'
+parts = ['train', 'test']  # train / test
+maxSize = 1024  # (w, h)
+minSize = 512  # (w, h)
+
+workspace_path = os.path.abspath(os.path.join(os.getcwd(), '../..'))
+data_path = '/root/workspace/datasets/VisDrone2019/VisDrone2020-CC/'
+output_path = os.path.join(workspace_path, 'ProcessedData', dataset)
+
+if os.path.isdir(workspace_path):
+    sys.path.append(workspace_path)
+    from datasets.get_density_map_gaussian import get_density_map_gaussian
+if not os.path.exists(output_path):
+    os.makedirs(output_path)
+
+train_list = pd.read_csv(os.path.join(data_path, 'trainlist.txt'), header=None).values
+test_list = pd.read_csv(os.path.join(data_path, 'testlist.txt'), header=None).values
+
+for part in parts:
+    print('Processing {:s} data of {:s} dataset'.format(part, dataset))
+
+    data_path_img = os.path.join(data_path, 'sequences')
+    data_path_gt = os.path.join(data_path, 'annotations')
+
+    file_list = pd.read_csv(os.path.join(data_path, '{:s}list.txt'.format(part)),
+                            header=None).values
+
+    output_path_dir = os.path.join(output_path, '{:s}/'.format(part))
+    output_path_img = os.path.join(output_path_dir, 'img/')
+    output_path_den = os.path.join(output_path_dir, 'den/')
+
+    if not os.path.exists(output_path_dir):
+        os.makedirs(output_path_dir)
+    if not os.path.exists(output_path_img):
+        os.makedirs(output_path_img)
+    if not os.path.exists(output_path_den):
+        os.makedirs(output_path_den)
+
+    for d in file_list:
+        dir_name = '{:05d}'.format(d[0])
+        annotations = None if part == 'test' else \
+            pd.read_csv(os.path.join(data_path_gt, '{:s}.txt'.format(dir_name))).values
+        for f in os.listdir(os.path.join(data_path_img, dir_name)):
+            img_path = os.path.join(data_path_img, dir_name, f)
+            img = cv2.imread(img_path)
+            [h, w, c] = img.shape
+
+            # resize
+            w_ = (int(w / 64)) * 64
+            # if w_ > 1024:
+            #     w_ = 1024
+            # elif w_ < 384:
+            #     w_ = 384
+
+            h_ = (int(h / 64)) * 64
+            # if h_ > 1024:
+            #     h_ = 1024
+            # elif h_ < 384:
+            #     h_ = 384
+
+            # generation
+            img_ = cv2.resize(img, (w_, h_))
+            rate_w, rate_h = float(w_) / w, float(h_) / h
+
+            fname = '{:s}_{:s}'.format(dir_name, f.split('.')[0])
+            cv2.imwrite(os.path.join(output_path_img, '{:s}.jpg'.format(fname)), img_)
+
+            if part == 'train':
+                gt = annotations[annotations[:, 0] == d][:, 1:]
+                gt = gt.astype(np.float32, copy=False)
+                gt[:, 0] = gt[:, 0] * float(rate_w)
+                gt[:, 1] = gt[:, 1] * float(rate_h)
+
+                dm = get_density_map_gaussian(img_, gt, 15, 4)
+                dm = pd.DataFrame(dm)
+                dm.to_csv(os.path.join(output_path_den, '{:s}.csv'.format(fname)),
+                          header=False, index=False)

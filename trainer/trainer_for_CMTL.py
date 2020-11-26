@@ -100,10 +100,10 @@ class Trainer():
                     count_class_hist[class_idx] += 1
 
         wts = count_class_hist
-        wts = 1-wts/(sum(wts));
-        wts = wts/sum(wts);
-        print( 'pre_wts:' )
-        print( wts )
+        wts = 1-wts/(sum(wts))
+        wts = wts/sum(wts)
+        print('pre_wts:')
+        print(wts)
 
         return wts
 

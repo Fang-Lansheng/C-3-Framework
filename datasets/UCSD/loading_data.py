@@ -1,18 +1,17 @@
 import torchvision.transforms as standard_transforms
 from torch.utils.data import DataLoader
 import misc.transforms as own_transforms
-from .UCSD import UCSD
-from .setting import cfg_data 
+from datasets.UCSD.UCSD import UCSD
+from datasets.UCSD.setting import cfg_data
 import torch
 
 
-def loading_data(train_mode):
-
+def loading_data(train_mode='DA'):
     mean_std = cfg_data.MEAN_STD
     log_para = cfg_data.LOG_PARA
     train_main_transform = own_transforms.Compose([
-    	# own_transforms.RandomCrop(cfg_data.TRAIN_SIZE),
-    	own_transforms.RandomHorizontallyFlip()
+        # own_transforms.RandomCrop(cfg_data.TRAIN_SIZE),
+        own_transforms.RandomHorizontallyFlip()
     ])
     img_transform = standard_transforms.Compose([
         standard_transforms.ToTensor(),
@@ -28,11 +27,13 @@ def loading_data(train_mode):
 
     train_loader = None
     if train_mode == 'DA':
-        train_set = UCSD(cfg_data.DATA_PATH+'/train', 'train',main_transform=train_main_transform, img_transform=img_transform, gt_transform=gt_transform)
-        train_loader = DataLoader(train_set, batch_size=cfg_data.TRAIN_BATCH_SIZE, num_workers=0, shuffle=True, drop_last=True)
-    
+        train_set = UCSD(cfg_data.DATA_PATH + '/train', 'train', main_transform=train_main_transform,
+                         img_transform=img_transform, gt_transform=gt_transform)
+        train_loader = DataLoader(train_set, batch_size=cfg_data.TRAIN_BATCH_SIZE, num_workers=0, shuffle=True,
+                                  drop_last=True)
 
-    val_set = UCSD(cfg_data.DATA_PATH+'/test', 'test', main_transform=None, img_transform=img_transform, gt_transform=gt_transform)
+    val_set = UCSD(cfg_data.DATA_PATH + '/test', 'test', main_transform=None, img_transform=img_transform,
+                   gt_transform=gt_transform)
     val_loader = DataLoader(val_set, batch_size=cfg_data.VAL_BATCH_SIZE, num_workers=0, shuffle=False, drop_last=False)
 
     return train_loader, val_loader, restore_transform
