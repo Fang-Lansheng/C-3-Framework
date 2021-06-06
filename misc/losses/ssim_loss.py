@@ -5,14 +5,16 @@ import torch.nn as nn
 from torch.nn.parameter import Parameter
 from torch.nn import functional as F
 from torch.autograd import Variable
-from torch.nn.modules.loss import _assert_no_grad, _Loss
+from torch.nn.modules.loss import _Loss
 import numpy as np
+
 
 def gaussian_kernel(size, sigma):
     x, y = np.mgrid[-size:size+1, -size:size+1]
     kernel = np.exp(-0.5*(x*x+y*y)/(sigma*sigma))
     kernel /= kernel.sum()
     return kernel
+
 
 class SSIM_Loss(_Loss):
     def __init__(self, in_channels, size=11, sigma=1.5, size_average=True):
@@ -29,7 +31,7 @@ class SSIM_Loss(_Loss):
         self.weight = Parameter(torch.from_numpy(weight).float(), requires_grad=False)
 
     def forward(self, input, target, mask=None):
-        _assert_no_grad(target)
+        # _assert_no_grad(target)
         mean1 = F.conv2d(input, self.weight, padding=self.size, groups=self.in_channels)
         mean2 = F.conv2d(target, self.weight, padding=self.size, groups=self.in_channels)
         mean1_sq = mean1*mean1

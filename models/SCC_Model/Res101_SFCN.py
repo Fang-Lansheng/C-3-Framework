@@ -2,12 +2,13 @@ import torch.nn as nn
 import torch
 from torchvision import models
 
-from misc.layer import convDU,convLR
+from misc.layer import convDU, convLR
 
 import torch.nn.functional as F
 from misc.utils import *
 
 import pdb
+
 
 # model_path = '../PyTorch_Pretrained/resnet101-5d3b4d8f.pth'
 
@@ -15,16 +16,14 @@ class Res101_SFCN(nn.Module):
     def __init__(self, pretrained=True):
         super(Res101_SFCN, self).__init__()
         self.seen = 0
-        self.backend_feat  = [512, 512, 512,256,128,64]
+        self.backend_feat = [512, 512, 512, 256, 128, 64]
         self.frontend = []
-        
-        self.backend = make_layers(self.backend_feat,in_channels = 1024,dilation = True)
-        self.convDU = convDU(in_out_channels=64,kernel_size=(1,9))
-        self.convLR = convLR(in_out_channels=64,kernel_size=(9,1))
 
+        self.backend = make_layers(self.backend_feat, in_channels=1024, dilation=True)
+        self.convDU = convDU(in_out_channels=64, kernel_size=(1, 9))
+        self.convLR = convLR(in_out_channels=64, kernel_size=(9, 1))
 
-        self.output_layer = nn.Sequential(nn.Conv2d(64, 1, kernel_size=1),nn.ReLU())
-
+        self.output_layer = nn.Sequential(nn.Conv2d(64, 1, kernel_size=1), nn.ReLU())
 
         initialize_weights(self.modules())
 
@@ -34,13 +33,10 @@ class Res101_SFCN(nn.Module):
         self.frontend = nn.Sequential(
             res.conv1, res.bn1, res.relu, res.maxpool, res.layer1, res.layer2
         )
-        self.own_reslayer_3 = make_res_layer(Bottleneck, 256, 23, stride=1)        
+        self.own_reslayer_3 = make_res_layer(Bottleneck, 256, 23, stride=1)
         self.own_reslayer_3.load_state_dict(res.layer3.state_dict())
 
-        
-
-
-    def forward(self,x):
+    def forward(self, x):
         x = self.frontend(x)
 
         x = self.own_reslayer_3(x)
@@ -51,11 +47,11 @@ class Res101_SFCN(nn.Module):
         x = self.convLR(x)
         x = self.output_layer(x)
 
-        x = F.upsample(x,scale_factor=8)
+        x = F.upsample(x, scale_factor=8)
         return x
-            
-                
-def make_layers(cfg, in_channels = 3,batch_norm=False,dilation = False):
+
+
+def make_layers(cfg, in_channels=3, batch_norm=False, dilation=False):
     if dilation:
         d_rate = 2
     else:
@@ -65,19 +61,18 @@ def make_layers(cfg, in_channels = 3,batch_norm=False,dilation = False):
         if v == 'M':
             layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
         else:
-            conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=d_rate,dilation = d_rate)
+            conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=d_rate, dilation=d_rate)
             if batch_norm:
                 layers += [conv2d, nn.BatchNorm2d(v), nn.ReLU(inplace=True)]
             else:
                 layers += [conv2d, nn.ReLU(inplace=True)]
             in_channels = v
-    return nn.Sequential(*layers)      
+    return nn.Sequential(*layers)
 
 
 def make_res_layer(block, planes, blocks, stride=1):
-
     downsample = None
-    inplanes=512
+    inplanes = 512
     if stride != 1 or inplanes != planes * block.expansion:
         downsample = nn.Sequential(
             nn.Conv2d(inplanes, planes * block.expansion,
@@ -91,7 +86,7 @@ def make_res_layer(block, planes, blocks, stride=1):
     for i in range(1, blocks):
         layers.append(block(inplanes, planes))
 
-    return nn.Sequential(*layers)  
+    return nn.Sequential(*layers)
 
 
 class Bottleneck(nn.Module):
@@ -130,4 +125,4 @@ class Bottleneck(nn.Module):
         out += residual
         out = self.relu(out)
 
-        return out        
+        return out

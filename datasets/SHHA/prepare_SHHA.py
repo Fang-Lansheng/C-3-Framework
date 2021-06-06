@@ -5,14 +5,17 @@ import numpy as np
 import pandas as pd
 from scipy.io import loadmat
 
-dataset = 'SHHB'
+dataset = 'SHHA'
 parts = ['train', 'test']  # train / test
 # maxSize = 1024  # (w, h)
 # minSize = 512  # (w, h)
 
 workspace_path = os.path.abspath(os.path.join(os.getcwd(), '../..'))
-data_path = '/root/workspace/datasets/ShanghaiTech/part_B_final/'
-output_path = os.path.join(workspace_path, 'ProcessedData', dataset)
+data_path = '/root/workspace/datasets/ShanghaiTech/part_A_final/'
+output_path = os.path.join(os.path.abspath(os.path.join(workspace_path, '..')),
+                           'ProcessedData', dataset)
+print('Work space is', workspace_path)
+print('Processed data saved in', output_path)
 
 if os.path.isdir(workspace_path):
     sys.path.append(workspace_path)

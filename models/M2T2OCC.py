@@ -11,7 +11,7 @@ class CrowdCounter(nn.Module):
     def __init__(self, gpus, model_name,loss_1_fn,loss_2_fn):
         super(CrowdCounter, self).__init__()
         if model_name == 'CMTL':
-            from M2T2OCC_Model.CMTL import CMTL as net  
+            from .M2T2OCC_Model.CMTL import CMTL as net
 
         self.CCN = net()
         if len(gpus) > 1:

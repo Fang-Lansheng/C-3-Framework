@@ -1,10 +1,9 @@
 import os
 import sys
 import cv2
-from scipy.io import loadmat
 import numpy as np
 import pandas as pd
-from datasets.get_density_map_gaussian import get_density_map_gaussian
+from scipy.io import loadmat
 
 dataset = 'Mall'
 parts = ['train', 'test']  # train / test
@@ -14,6 +13,10 @@ parts = ['train', 'test']  # train / test
 workspace_path = os.path.abspath(os.path.join(os.getcwd(), '../..'))
 data_path = '/root/workspace/datasets/Mall/'
 output_path = os.path.join(workspace_path, 'ProcessedData', dataset)
+
+if os.path.isdir(workspace_path):
+    sys.path.append(workspace_path)
+    from datasets.get_density_map_gaussian import get_density_map_gaussian
 if not os.path.exists(output_path):
     os.makedirs(output_path)
 

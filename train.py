@@ -54,12 +54,16 @@ elif data_mode == 'VisDrone':  # TO DO
 
 # ------------ Prepare Trainer ------------
 net = cfg.NET
-if net in ['MCNN', 'AlexNet', 'VGG', 'VGG_DECODER', 'Res50', 'Res101', 'CSRNet', 'Res101_SFCN']:
-    from trainer.trainer import Trainer
-elif net in ['SANet']:
-    from trainer.trainer_for_M2TCC import Trainer # double losses but signle output
+if net in ['SANet']:
+    from trainer.trainer_for_M2TCC import Trainer  # double losses but signle output
 elif net in ['CMTL']:
-    from trainer.trainer_for_CMTL import Trainer # double losses and double outputs
+    from trainer.trainer_for_CMTL import Trainer  # double losses and double outputs
+elif net in ['AMRNet']:
+    from trainer.trainer_for_LCM import Trainer
+elif net in ['NewNet']:
+    from trainer.trainer_for_NewNet import Trainer
+else:
+    from trainer.trainer import Trainer
 # elif net in ['PCCNet']:
 #     from trainer_for_M3T3OCC import Trainer
 

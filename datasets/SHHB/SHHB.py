@@ -18,7 +18,7 @@ class SHHB(data.Dataset):
         self.data_files = [filename for filename in os.listdir(self.img_path) \
                            if os.path.isfile(os.path.join(self.img_path,filename))]
         self.num_samples = len(self.data_files) 
-        self.main_transform=main_transform  
+        self.main_transform = main_transform
         self.img_transform = img_transform
         self.gt_transform = gt_transform     
     
@@ -41,15 +41,12 @@ class SHHB(data.Dataset):
         if img.mode == 'L':
             img = img.convert('RGB')
 
-        # den = sio.loadmat(os.path.join(self.gt_path,os.path.splitext(fname)[0] + '.mat'))
-        # den = den['map']
-        den = pd.read_csv(os.path.join(self.gt_path,os.path.splitext(fname)[0] + '.csv'), sep=',',header=None).values
-        
+        den = pd.read_csv(os.path.join(self.gt_path, os.path.splitext(fname)[0] + '.csv'),
+                          sep=',', header=None).values
         den = den.astype(np.float32, copy=False)    
-        den = Image.fromarray(den)  
+        den = Image.fromarray(den)
+
         return img, den    
 
     def get_num_samples(self):
         return self.num_samples       
-            
-        

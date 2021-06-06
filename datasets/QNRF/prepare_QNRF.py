@@ -5,27 +5,26 @@ import numpy as np
 import pandas as pd
 from scipy.io import loadmat
 
-dataset = 'UCSD'
+dataset = 'QNRF'
 parts = ['train', 'test']  # train / test
 maxSize = 1024  # (w, h)
 minSize = 512  # (w, h)
 
 workspace_path = os.path.abspath(os.path.join(os.getcwd(), '../..'))
-data_path = '/root/workspace/datasets/UCSD/'
+data_path = '/root/workspace/datasets/UCF-QNRF/'
 output_path = os.path.join(workspace_path, 'ProcessedData', dataset)
 
 if os.path.isdir(workspace_path):
     sys.path.append(workspace_path)
     from datasets.get_density_map_gaussian import get_density_map_gaussian
-    from datasets.UCSD.setting import cfg_data
 if not os.path.exists(output_path):
     os.makedirs(output_path)
 
 for part in parts:
     print('Processing {:s} data of {:s} dataset'.format(part, dataset))
 
-    data_path_img = os.path.join(data_path, '{:s}_data/'.format(part))
-    data_path_gt = os.path.join(data_path, '{:s}_label/'.format(part))
+    data_path_img = os.path.join(data_path, '{:s}'.format(part))
+    data_path_gt = os.path.join(data_path, '{:s}'.format(part))
 
     output_path_dir = os.path.join(output_path, '{:s}/'.format(part))
     output_path_img = os.path.join(output_path_dir, 'img/')
@@ -37,9 +36,6 @@ for part in parts:
         os.makedirs(output_path_img)
     if not os.path.exists(output_path_den):
         os.makedirs(output_path_den)
-
-    # num_samples = len(os.listdir(data_path_img))
-    k_size, sigma = cfg_data.GAUSSIAN_KERNEL_SIZE, cfg_data.GAUSSIAN_SIGMA
 
     for d in os.listdir(data_path_img):
         for f in os.listdir(os.path.join(data_path_img, d)):
@@ -71,10 +67,11 @@ for part in parts:
             gt[:, 0] = gt[:, 0] * float(rate_w)
             gt[:, 1] = gt[:, 1] * float(rate_h)
 
-            dm = get_density_map_gaussian(img_, gt, k_size, sigma)
+            dm = get_density_map_gaussian(img_, gt, 15, 4)
 
             # save files
-            cv2.imwrite(os.path.join(output_path_img, f), img_)
+            fname = '{:03d}_{:03d}'.format(int(d), int(f.split('.')[0]))
+            cv2.imwrite(os.path.join(output_path_img, '{:s}.jpg'.format(fname)), img_)
             dm = pd.DataFrame(dm)
-            dm.to_csv(os.path.join(output_path_den, f.split('.')[0] + '.csv'),
+            dm.to_csv(os.path.join(output_path_den, '{:s}.csv'.format(fname)),
                       header=False, index=False)

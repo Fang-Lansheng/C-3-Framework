@@ -1,11 +1,10 @@
-import logging
-from config import cfg
-from misc.utils import *
-from models.CC import CrowdCounter
-
 from torch import optim
 from torch.autograd import Variable
-from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
+from torch.optim.lr_scheduler import StepLR
+
+from config import cfg
+from misc.utils import *
+from models.CC_NewNet import CrowdCounter
 
 
 class Trainer(nn.Module):
@@ -23,10 +22,9 @@ class Trainer(nn.Module):
         self.net_name = cfg.NET
         self.net = CrowdCounter(cfg.GPU_ID, self.net_name).cuda()
         self.optimizer = optim.Adam(self.net.CCN.parameters(), lr=cfg.LR, weight_decay=cfg.WEIGHT_DECAY)
-        # self.optimizer = optim.SGD(self.net.parameters(), lr=cfg.LR, momentum=0.95, weight_decay=cfg.WEIGHT_DECAY)
-        if cfg.IF_LR_SCHEDULE:
-            self.scheduler = StepLR(self.optimizer, step_size=cfg.NUM_EPOCH_LR_DECAY, gamma=cfg.LR_DECAY)
-            # self.scheduler = CosineAnnealingLR(optimizer=self.optimizer, T_max=cfg.MAX_EPOCH, eta_min=0)
+        # self.optimizer = optim.SGD(self.net.CCN.parameters(), lr=cfg.LR, momentum=0.95, weight_decay=cfg.WEIGHT_DECAY)
+        self.scheduler = StepLR(self.optimizer, step_size=cfg.NUM_EPOCH_LR_DECAY, gamma=cfg.LR_DECAY)
+        # self.scheduler = CosineAnnealingLR(optimizer=self.optimizer, T_max=cfg.MAX_EPOCH, eta_min=0)
 
         self.train_record = {'best_mae': 1e20, 'best_mse': 1e20, 'best_model_name': ''}
         self.timer = {'iter time': Timer(), 'train time': Timer(), 'val time': Timer()}
@@ -35,9 +33,6 @@ class Trainer(nn.Module):
         self.epoch = 0
         self.i_tb = 0
         self.scores = None
-
-        # if cfg.PRE_GCC:
-        #     self.net.load_state_dict(torch.load(cfg.PRE_GCC_MODEL))
 
         self.train_loader, self.val_loader, self.restore_transform = dataloader()
 
@@ -63,14 +58,12 @@ class Trainer(nn.Module):
             self.epoch = epoch
             logging.info('> Epoch {:4d}/{:4d} '.format(self.epoch + 1, cfg.MAX_EPOCH))
 
-            # training    
+            # training
             self.timer['train time'].tic()
             self.train()
 
-            if cfg.IF_LR_SCHEDULE and epoch > cfg.LR_DECAY_START:
+            if epoch > cfg.LR_DECAY_START:
                 self.scheduler.step()
-            # if cfg.IF_LR_SCHEDULE:
-            #     self.scheduler.step()
 
             # validation
             if epoch % cfg.VAL_FREQ == 0 or epoch + 1 > cfg.VAL_DENSE_START:
@@ -82,15 +75,19 @@ class Trainer(nn.Module):
                 else:
                     self.validate()
                 self.timer['val time'].toc(average=False)
-                logging.info('\t[Val]   MAE: {:6.2f}, MSE: {:6.2f}, Val loss: {:7.4f}], Cost time: {:.2f}s {:}'.
+                logging.info('\t[Val]   MAE: {:6.2f}, MSE: {:6.2f}, Val loss: {:7.4f}, Cost time: {:.2f}s {:}'.
                              format(self.scores[0], self.scores[1], self.scores[2], self.timer['val time'].diff,
                                     '(save best model!)' if self.train_record['save_best'] else ''))
 
     def train(self, mode=True):  # training for all datasets
         self.net.train()
+        epoch_losses = AverageMeter()
+        epoch_mse_loss = AverageMeter()
+        epoch_count_loss = AverageMeter()
+        epoch_lcm_loss = AverageMeter()
+
         for i, data in enumerate(self.train_loader, 0):
-            epoch_mse_loss = AverageMeter()
-            epoch_count_loss = AverageMeter()
+
             self.timer['iter time'].tic()
             img, gt_map = data
             img = Variable(img).cuda()
@@ -102,27 +99,50 @@ class Trainer(nn.Module):
             loss.backward()
             self.optimizer.step()
 
-            epoch_mse_loss.update(self.net.loss_mse.item())
+            epoch_losses.update(self.net.losses.item())
+            # epoch_mse_loss.update(self.net.loss_mse.item())
             # epoch_count_loss.update(self.net.count_loss.item())
             epoch_count_loss.update(abs(gt_map[0].sum().data - pred_map[0].sum().data))
+            # epoch_lcm_loss.update(self.net.loss_lcm.item())
 
             if (i + 1) % cfg.PRINT_FREQ == 0:
                 self.i_tb += 1
                 self.writer.add_scalar('train_loss', loss.item(), self.i_tb)
                 self.timer['iter time'].toc(average=False)
-                logging.info('\tit: {:3d} | loss: {:6.4f} | avg. mse loss: {:6.4e} '
-                             'avg. count loss: | time: {:.2f}s '.
-                             format(i + 1, loss.item(), float(epoch_mse_loss.avg),
+
+                logging.info('\tit: {:3d} | avg. loss: {:9.4f} | avg. count diff: {:9.4f} '
+                             '| cnt (gt/pred): {:7.2f}/{:7.2f}'.
+                             format(i + 1, float(epoch_losses.avg),
                                     float(epoch_count_loss.avg / self.cfg_data.LOG_PARA),
-                                    self.timer['iter time'].diff,))
+                                    float(gt_map[0].sum().data / self.cfg_data.LOG_PARA),
+                                    float(pred_map[0].sum().data / self.cfg_data.LOG_PARA)))
+
+                # logging.info('\tit: {:3d} | avg. mse loss: {:9.4f} | avg. lcm loss: {:9.4f} '
+                #              '| cnt (gt/pred): {:7.2f}/{:7.2f}'.
+                #              format(i + 1, float(epoch_mse_loss.avg), float(epoch_lcm_loss.avg),
+                #                     float(gt_map[0].sum().data / self.cfg_data.LOG_PARA),
+                #                     float(pred_map[0].sum().data / self.cfg_data.LOG_PARA)))
+
                 # print('\t[it: {:4d}] [loss: {:5.4f}[ [lr: {:5.4e}] '
                 #       '[time: {:.2f}s] [cnt (gt/pred): {:6.2f}/{:6.2f}'.
                 #       format(i + 1, loss.item(), self.optimizer.param_groups[0]['lr'],
                 #              self.timer['iter time'].diff,
                 #              float(gt_map[0].sum().data / self.cfg_data.LOG_PARA),
                 #              float(pred_map[0].sum().data / self.cfg_data.LOG_PARA)))
+                # logging.info('\t[it: {:3d}] [loss: {:5.4f}[ [lr: {:5.4e}] '
+                #              '[time: {:.2f}s] [cnt (gt/pred): {:6.2f}/{:6.2f}'.
+                #              format(i + 1, loss.item(), self.optimizer.param_groups[0]['lr'],
+                #                     self.timer['iter time'].diff,
+                #                     float(gt_map[0].sum().data / self.cfg_data.LOG_PARA),
+                #                     float(pred_map[0].sum().data / self.cfg_data.LOG_PARA)))
+
+                epoch_losses.reset()
+                epoch_mse_loss.reset()
+                epoch_count_loss.reset()
+                epoch_lcm_loss.reset()
+
         self.timer['train time'].toc(average=False)
-        logging.info('\t[Train] lr: {:6.4e}, cost time: {:.2f}s'.
+        logging.info('\t[Train] LR: {:6.4e}, Cost time: {:.2f}s'.
                      format(self.optimizer.param_groups[0]['lr'], self.timer['train time'].diff))
 
     def validate(self):  # validate_V1 for SHHA, SHHB, UCF-QNRF, UCF50
@@ -140,7 +160,8 @@ class Trainer(nn.Module):
                 img = Variable(img).cuda()
                 gt_map = Variable(gt_map).cuda()
 
-                pred_map = self.net.forward(img, gt_map)
+                # pred_map = self.net.forward(img, gt_map)
+                pred_map = self.net.test_forward(img)
 
                 pred_map = pred_map.data.cpu().numpy()
                 gt_map = gt_map.data.cpu().numpy()
@@ -152,9 +173,9 @@ class Trainer(nn.Module):
                     losses.update(self.net.loss.item())
                     maes.update(abs(gt_count - pred_cnt))
                     mses.update((gt_count - pred_cnt) * (gt_count - pred_cnt))
-                if vi == 0:
-                    vis_results(self.exp_name, self.epoch, self.writer,
-                                self.restore_transform, img, pred_map, gt_map)
+                # if vi == 0:
+                #     vis_results(self.exp_name, self.epoch, self.writer,
+                #                 self.restore_transform, img, pred_map, gt_map)
 
         mae = maes.avg
         mse = np.sqrt(mses.avg)

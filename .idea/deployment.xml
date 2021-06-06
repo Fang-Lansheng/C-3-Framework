@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="root@219.223.192.23:20700 password" remoteFilesAllowedToDisappearOnAutoupload="false" autoUploadExternalChanges="true">
+  <component name="PublishConfigData" autoUpload="Always" serverName="PKUSZ_SECE" remoteFilesAllowedToDisappearOnAutoupload="false" autoUploadExternalChanges="true">
     <serverData>
-      <paths name="root@219.223.192.23:20700 password">
+      <paths name="PKUSZ_SECE">
         <serverdata>
           <mappings>
             <mapping deploy="/root/workspace/counting/C-3-Framework" local="$PROJECT_DIR$" />

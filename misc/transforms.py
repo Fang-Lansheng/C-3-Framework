@@ -4,7 +4,10 @@ import numpy as np
 from PIL import Image, ImageOps, ImageFilter
 from config import cfg
 import torch
-# ===============================img tranforms============================
+
+
+# =============================== img transforms ============================
+
 
 class Compose(object):
     def __init__(self, transforms):
@@ -19,20 +22,22 @@ class Compose(object):
             img, mask, bbx = t(img, mask, bbx)
         return img, mask, bbx
 
+
 class RandomHorizontallyFlip(object):
     def __call__(self, img, mask, bbx=None):
         if random.random() < 0.5:
             if bbx is None:
                 return img.transpose(Image.FLIP_LEFT_RIGHT), mask.transpose(Image.FLIP_LEFT_RIGHT)
             w, h = img.size
-            xmin = w - bbx[:,3]
-            xmax = w - bbx[:,1]
-            bbx[:,1] = xmin
-            bbx[:,3] = xmax
+            xmin = w - bbx[:, 3]
+            xmax = w - bbx[:, 1]
+            bbx[:, 1] = xmin
+            bbx[:, 3] = xmax
             return img.transpose(Image.FLIP_LEFT_RIGHT), mask.transpose(Image.FLIP_LEFT_RIGHT), bbx
         if bbx is None:
             return img, mask
         return img, mask, bbx
+
 
 class RandomCrop(object):
     def __init__(self, size, padding=0):
@@ -78,13 +83,13 @@ class CenterCrop(object):
         return img.crop((x1, y1, x1 + tw, y1 + th)), mask.crop((x1, y1, x1 + tw, y1 + th))
 
 
-
 class FreeScale(object):
     def __init__(self, size):
         self.size = size  # (h, w)
 
     def __call__(self, img, mask):
-        return img.resize((self.size[1], self.size[0]), Image.BILINEAR), mask.resize((self.size[1], self.size[0]), Image.NEAREST)
+        return img.resize((self.size[1], self.size[0]), Image.BILINEAR), mask.resize((self.size[1], self.size[0]),
+                                                                                     Image.NEAREST)
 
 
 class ScaleDown(object):
@@ -92,7 +97,7 @@ class ScaleDown(object):
         self.size = size  # (h, w)
 
     def __call__(self, mask):
-        return  mask.resize((self.size[1]/cfg.TRAIN.DOWNRATE, self.size[0]/cfg.TRAIN.DOWNRATE), Image.NEAREST)
+        return mask.resize((self.size[1] / cfg.TRAIN.DOWNRATE, self.size[0] / cfg.TRAIN.DOWNRATE), Image.NEAREST)
 
 
 class Scale(object):
@@ -101,8 +106,8 @@ class Scale(object):
 
     def __call__(self, img, mask):
         if img.size != mask.size:
-            print( img.size )
-            print( mask.size )          
+            print(img.size)
+            print(mask.size)
         assert img.size == mask.size
         w, h = img.size
         if (w <= h and w == self.size) or (h <= w and h == self.size):
@@ -117,7 +122,7 @@ class Scale(object):
             return img.resize((ow, oh), Image.BILINEAR), mask.resize((ow, oh), Image.NEAREST)
 
 
-# ===============================label tranforms============================
+# ===============================label transforms============================
 
 class DeNormalize(object):
     def __init__(self, mean, std):
@@ -142,8 +147,9 @@ class LabelNormalize(object):
     def __call__(self, tensor):
         # tensor = 1./(tensor+self.para).log()
         tensor = torch.from_numpy(np.array(tensor))
-        tensor = tensor*self.para
+        tensor = tensor * self.para
         return tensor
+
 
 class GTScaleDown(object):
     def __init__(self, factor=8):
@@ -151,8 +157,8 @@ class GTScaleDown(object):
 
     def __call__(self, img):
         w, h = img.size
-        if self.factor==1:
+        if self.factor == 1:
             return img
-        tmp = np.array(img.resize((w//self.factor, h//self.factor), Image.BICUBIC))*self.factor*self.factor
+        tmp = np.array(img.resize((w // self.factor, h // self.factor), Image.BICUBIC)) * self.factor * self.factor
         img = Image.fromarray(tmp)
         return img
